@@ -3,8 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1877f2">
   <link rel="manifest" href="./manifest.json">
   <title>Elyanas E-System</title>
@@ -43,34 +42,106 @@
       font-weight: bold;
       cursor: pointer;
     }
+    button:disabled { opacity: 0.6; cursor: wait; }
     #status { font-size: 13px; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <main class="card">
-    <h1>Elyanas</h1>
-    <p>E-System Employee Login</p>
+    <section id="loginSection">
+      <h1>Elyanas</h1>
+      <p>E-System Employee Login</p>
 
-    <form id="loginForm">
-      <input id="employeeCode"
-             placeholder="Employee Code"
-             autocomplete="username" required>
-      <input id="password"
-             type="password"
-             placeholder="Password"
-             autocomplete="current-password" required>
-      <button type="submit">Log in</button>
-    </form>
+      <form id="loginForm">
+        <input id="employeeCode"
+               placeholder="Employee Code"
+               autocomplete="username" required>
+        <input id="password"
+               type="password"
+               placeholder="Password"
+               autocomplete="current-password" required>
+        <button id="loginButton" type="submit">Log in</button>
+      </form>
 
-    <p id="status"></p>
+      <p id="status" role="status"></p>
+    </section>
+
+    <section id="welcomeSection" class="hidden">
+      <h1>Welcome!</h1>
+      <h2 id="employeeName"></h2>
+      <p id="employeePosition"></p>
+      <p id="employeeCodeDisplay"></p>
+      <button id="logoutButton" type="button">Log out</button>
+    </section>
   </main>
 
   <script>
-    document.getElementById('loginForm')
-      .addEventListener('submit', event => {
-        event.preventDefault();
-        document.getElementById('status').textContent =
-          'Secure login connection is not configured yet.';
+    const API_URL =
+      'https://elyanas-login-api.delimaaava.workers.dev/login';
+
+    const loginForm = document.getElementById('loginForm');
+    const loginButton = document.getElementById('loginButton');
+    const status = document.getElementById('status');
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      loginButton.disabled = true;
+      loginButton.textContent = 'Logging in...';
+      status.textContent = '';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            employeeCode:
+              document.getElementById('employeeCode').value.trim(),
+            password:
+              document.getElementById('password').value
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.user) {
+          throw new Error(
+            result.message || 'Invalid employee code or password'
+          );
+        }
+
+        document.getElementById('password').value = '';
+        document.getElementById('employeeName').textContent =
+          result.user.name || 'Employee';
+        document.getElementById('employeePosition').textContent =
+          result.user.designation || '';
+        document.getElementById('employeeCodeDisplay').textContent =
+          'Employee Code: ' + (result.user.employeeCode || '');
+
+        document.getElementById('loginSection')
+          .classList.add('hidden');
+        document.getElementById('welcomeSection')
+          .classList.remove('hidden');
+
+      } catch (error) {
+        status.textContent = error.message || 'Login failed';
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = 'Log in';
+      }
+    });
+
+    document.getElementById('logoutButton')
+      .addEventListener('click', () => {
+        loginForm.reset();
+        document.getElementById('welcomeSection')
+          .classList.add('hidden');
+        document.getElementById('loginSection')
+          .classList.remove('hidden');
+        status.textContent = '';
       });
 
     if ('serviceWorker' in navigator) {
